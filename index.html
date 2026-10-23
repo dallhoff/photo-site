@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>From My Kitchen</title>
+<meta name="description" content="A few things I've cooked lately.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700&family=Figtree:wght@400;500&display=swap">
+<style>
+  /* Layout: short header, then a 2-to-4 column grid of portrait photos; tap opens a full-screen viewer */
+  :root {
+    --bg: #f6f5f2;
+    --fg: #22201c;
+    --muted: #6d675d;
+    --tile: #e4e1da;
+    --accent: #4d5b2f;
+    --overlay: rgba(14, 13, 11, 0.97);
+    --overlay-fg: #f3f1ec;
+    --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+    --body: "Figtree", "Segoe UI", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #151412; --fg: #ece9e3; --muted: #a29b8f; --tile: #24221e;
+      --accent: #b4c48a; color-scheme: dark;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.5;
+    padding-block: max(32px, env(safe-area-inset-top, 0px)) 48px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  main { max-width: 1100px; margin: 0 auto; display: grid; gap: 24px; }
+
+  header h1 {
+    font-family: var(--display);
+    font-size: clamp(2rem, 8vw, 3.4rem);
+    line-height: 1;
+    letter-spacing: -0.03em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  header p { margin: 8px 0 0; color: var(--muted); }
+  header .count { color: var(--accent); font-weight: 500; }
+
+  .grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(160px, 45%), 1fr));
+    gap: 8px;
+  }
+  .grid button {
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--tile);
+    cursor: zoom-in;
+    aspect-ratio: 3 / 4;
+  }
+  .grid img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 300ms ease;
+  }
+  .grid button:hover img { transform: scale(1.03); }
+  .grid button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+  /* Full-screen viewer */
+  dialog {
+    width: 100vw;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: var(--overlay);
+    color: var(--overlay-fg);
+  }
+  dialog::backdrop { background: var(--overlay); }
+  .viewer {
+    height: 100%;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px max(12px, env(safe-area-inset-right, 0px)) 8px max(16px, env(safe-area-inset-left, 0px));
+    font-variant-numeric: tabular-nums;
+    font-size: 0.9rem;
+  }
+  .stage { position: relative; min-height: 0; display: grid; place-items: center; touch-action: pan-y; }
+  .stage img { max-width: 100%; max-height: 100%; object-fit: contain; user-select: none; }
+  .viewer button {
+    font: inherit;
+    color: var(--overlay-fg);
+    background: rgba(255, 255, 255, 0.12);
+    border: 0;
+    border-radius: 999px;
+    width: 44px;
+    height: 44px;
+    font-size: 1.4rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .viewer button:hover { background: rgba(255, 255, 255, 0.22); }
+  .viewer button:focus-visible { outline: 2px solid var(--overlay-fg); outline-offset: 2px; }
+  .nav { position: absolute; top: 50%; transform: translateY(-50%); }
+  #prev { left: max(12px, env(safe-area-inset-left, 0px)); }
+  #next { right: max(12px, env(safe-area-inset-right, 0px)); }
+  @media (hover: none) { .nav { display: none; } }
+
+  footer { color: var(--muted); font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>From My Kitchen</h1>
+    <p>A few things I've cooked lately. <span class="count" id="count"></span></p>
+  </header>
+
+  <ul class="grid" id="grid"></ul>
+
+  <footer>Tap a photo to see it full size. Swipe or use the arrow keys to move between them.</footer>
+</main>
+
+<dialog id="viewer" aria-label="Photo viewer">
+  <div class="viewer">
+    <div class="bar">
+      <span id="position"></span>
+      <button id="close" type="button" aria-label="Close">&times;</button>
+    </div>
+    <div class="stage" id="stage">
+      <img id="big" alt="">
+      <button class="nav" id="prev" type="button" aria-label="Previous photo">&lsaquo;</button>
+      <button class="nav" id="next" type="button" aria-label="Next photo">&rsaquo;</button>
+    </div>
+  </div>
+</dialog>
+
+<script>
+  // To add a photo: put a large copy in photos/full/ and a small copy with
+  // the same name in photos/thumb/, then add a line to this list.
+  const photos = [
+    ["01-breakfast-bagel-grits.jpg", "Toasted bagel with cream cheese, bacon, grits and fried eggs, with coffee and orange juice"],
+    ["02-breakfast-hash-grits.jpg", "Bacon, potato and sausage hash, buttered grits and two fried eggs"],
+    ["03-breakfast-quesadillas.jpg", "Breakfast quesadillas with sausage gravy, bacon and crispy hash browns"],
+    ["04-chicken-udon.jpg", "Chicken udon with soft-boiled eggs and charred red onions"],
+    ["05-pork-udon.jpg", "Udon with crispy pulled pork, caramelized onions and soft-boiled eggs"],
+    ["06-garlic-naan.jpg", "Garlic naan with herbs"],
+    ["07-breakfast-home-fries.jpg", "Fried eggs on toast, home fries with ketchup, grits and bacon"],
+    ["08-gumbo.jpg", "Chicken and sausage gumbo over rice"],
+    ["09-chicken-avocado-rice.jpg", "Chicken fried rice with onions and avocado"],
+    ["10-noodles-fried-egg.jpg", "Stir-fried noodles with chicken, topped with a fried egg"],
+    ["11-avocado-rice-bowl.jpg", "Chicken and rice bowl with avocado"],
+  ];
+
+  const $ = (id) => document.getElementById(id);
+  const viewer = $("viewer");
+  const big = $("big");
+  let index = 0;
+
+  $("count").textContent = `${photos.length} photos.`;
+  $("grid").replaceChildren(...photos.map(([file, alt], i) => {
+    const li = document.createElement("li");
+    const btn = document.createElement("button");
+    const img = document.createElement("img");
+    btn.type = "button";
+    btn.setAttribute("aria-label", "Open: " + alt);
+    img.src = "photos/thumb/" + file;
+    img.alt = alt;
+    img.loading = i < 6 ? "eager" : "lazy";
+    img.width = 450;
+    img.height = 600;
+    btn.append(img);
+    btn.addEventListener("click", () => openViewer(i));
+    li.append(btn);
+    return li;
+  }));
+
+  function show(i) {
+    index = (i + photos.length) % photos.length;
+    const [file, alt] = photos[index];
+    big.src = "photos/full/" + file;
+    big.alt = alt;
+    $("position").textContent = `${index + 1} / ${photos.length}`;
+    // Fetch the neighbors early so swiping feels instant
+    [index + 1, index - 1].forEach((n) => {
+      new Image().src = "photos/full/" + photos[(n + photos.length) % photos.length][0];
+    });
+  }
+
+  function openViewer(i) {
+    show(i);
+    viewer.showModal();
+    document.body.style.overflow = "hidden";
+  }
+
+  viewer.addEventListener("close", () => {
+    document.body.style.overflow = "";
+    $("grid").children[index]?.querySelector("button").focus();
+  });
+  $("close").addEventListener("click", () => viewer.close());
+  $("prev").addEventListener("click", () => show(index - 1));
+  $("next").addEventListener("click", () => show(index + 1));
+
+  // Tapping the dark area around the photo closes the viewer
+  $("stage").addEventListener("click", (e) => {
+    if (e.target === e.currentTarget) viewer.close();
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (!viewer.open) return;
+    if (e.key === "ArrowRight") show(index + 1);
+    if (e.key === "ArrowLeft") show(index - 1);
+  });
+
+  // Swipe left or right on phones
+  let startX = null, startY = null;
+  $("stage").addEventListener("touchstart", (e) => {
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+  }, { passive: true });
+  $("stage").addEventListener("touchend", (e) => {
+    if (startX === null) return;
+    const dx = e.changedTouches[0].clientX - startX;
+    const dy = e.changedTouches[0].clientY - startY;
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) show(index + (dx < 0 ? 1 : -1));
+    else if (dy > 80) viewer.close(); // swipe down to close
+    startX = null;
+  });
+</script>
+</body>
+</html>
